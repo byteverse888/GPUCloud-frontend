@@ -14,10 +14,12 @@ interface UIState {
   sidebarCollapsed: boolean
   sidebarWidth: number   // 展开态宽度（px），持久化
   isResizing: boolean    // 是否正在拖拽（不持久化；拖拽时禁用宽度过渡以保证跟手）
+  adminAppId: string     // 管理端当前应用筛选（all=全部应用），持久化
   toggleSidebar: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
   setSidebarWidth: (width: number) => void
   setResizing: (resizing: boolean) => void
+  setAdminAppId: (appId: string) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -26,10 +28,12 @@ export const useUIStore = create<UIState>()(
       sidebarCollapsed: false,
       sidebarWidth: SIDEBAR_WIDTH_DEFAULT,
       isResizing: false,
+      adminAppId: 'all',
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       setSidebarWidth: (width) => set({ sidebarWidth: clampSidebarWidth(width) }),
       setResizing: (resizing) => set({ isResizing: resizing }),
+      setAdminAppId: (appId) => set({ adminAppId: appId || 'all' }),
     }),
     {
       name: 'ui-storage',
@@ -37,6 +41,7 @@ export const useUIStore = create<UIState>()(
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
         sidebarWidth: state.sidebarWidth,
+        adminAppId: state.adminAppId,
       }),
     }
   )

@@ -347,7 +347,7 @@ export default function SettingsPage() {
               <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground space-y-1">
                 <div className="font-medium text-foreground">部署提示</div>
                 <div>1. 服务器 .env 配置 WECHAT_SUB_APP_ID、WECHAT_SUB_TOKEN（必填）</div>
-                <div>2. 微信订阅号后台「消息推送」回调 URL：https://你的域名/api/v1/wechat/sub/callback，Token 与 .env 一致，明文模式</div>
+                <div>2. 微信订阅号后台「消息推送」回调 URL：https://你的域名/api/v1/wechat/sub/callback/gpucloud，Token 与 .env 一致，明文模式</div>
                 <div>3. 服务器需公网可达 + HTTPS + 域名已备案</div>
               </div>
               <Button onClick={saveSettings} disabled={saving} className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white">

@@ -13,8 +13,12 @@ import { Pagination } from '@/components/ui/pagination'
 import { Search, Download, Eye, Loader2, RefreshCw, ShoppingCart, CreditCard, CalendarDays, Receipt, Activity } from 'lucide-react'
 import { useAdminOrders, useAdminTransactions, useAdminOrderStats } from '@/hooks/use-api'
 import { formatTime, renderBillingDescription } from '@/lib/utils'
+import { useUIStore } from '@/stores/ui-store'
+import { AppFilter, AppBadge } from '@/components/admin/app-filter'
+import { appName } from '@/lib/admin-apps'
 
 export default function OrdersPage() {
+  const { adminAppId } = useUIStore()
   const [activeTab, setActiveTab] = useState('orders')
 
   // ── 订单列表：服务端筛选 + 分页 ──
@@ -29,8 +33,9 @@ export default function OrdersPage() {
     email: emailQuery || undefined,
     status: statusFilter === 'all' ? undefined : statusFilter,
     type: typeFilter === 'all' ? undefined : typeFilter,
+    appId: adminAppId,
   })
-  const { stats, loading: statsLoading } = useAdminOrderStats()
+  const { stats, loading: statsLoading } = useAdminOrderStats(undefined, adminAppId)
 
   // ── 计费记录：按量计费流水+订单+充值全量资金流水，独立分页，支持按用户筛选 ──
   const [txPage, setTxPage] = useState(1)
@@ -38,7 +43,7 @@ export default function OrdersPage() {
   const [txSearchInput, setTxSearchInput] = useState('')
   const [txEmailQuery, setTxEmailQuery] = useState('')
   const { transactions, loading: txLoading, total: txTotal } = useAdminTransactions(
-    txPage, txPageSize, undefined, undefined, txEmailQuery || undefined
+    txPage, txPageSize, undefined, undefined, txEmailQuery || undefined, adminAppId
   )
 
   // ── 订单详情弹窗 ──
@@ -72,6 +77,7 @@ export default function OrdersPage() {
   const getTypeBadge = (type: string) => {
     const config: Record<string, string> = {
       create: '创建实例', renew: '续费', recharge: '充值', upgrade: '升级',
+      consumption: '资源订单', course: '课程', member: '会员',
     }
     return <Badge variant="outline">{config[type] || type}</Badge>
   }
@@ -79,15 +85,21 @@ export default function OrdersPage() {
   const getTypeLabel = (type: string) => {
     const config: Record<string, string> = {
       create: '创建实例', renew: '续费', recharge: '充值', upgrade: '升级',
+      consumption: '资源订单', course: '课程', member: '会员',
     }
     return config[type] || type
   }
+
+  // 充值/课程/会员均为真实收款订单，展示金额与支付状态；资源订单从余额扣款
+  const isPaymentOrder = (type: string) => ['recharge', 'course', 'member'].includes(type)
 
   const txTypeBadge = (type: string) => {
     const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'success' }> = {
       recharge: { label: '充值', variant: 'success' },
       billing: { label: '按量计费', variant: 'default' },
       consumption: { label: '资源订单', variant: 'secondary' },
+      course: { label: '课程', variant: 'secondary' },
+      member: { label: '会员', variant: 'secondary' },
     }
     const { label, variant } = config[type] || { label: type, variant: 'secondary' as const }
     return <Badge variant={variant}>{label}</Badge>
@@ -177,12 +189,15 @@ export default function OrdersPage() {
                 onKeyDown={(e) => { if (e.key === 'Enter') applySearch() }}
               />
             </div>
+            <AppFilter onChange={() => setPage(1)} />
             <Select value={typeFilter} onValueChange={handleTypeChange}>
               <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">全部类型</SelectItem>
                 <SelectItem value="consumption">资源订单</SelectItem>
                 <SelectItem value="recharge">充值订单</SelectItem>
+                <SelectItem value="course">课程订单</SelectItem>
+                <SelectItem value="member">会员订单</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={handleStatusChange}>
@@ -208,6 +223,7 @@ export default function OrdersPage() {
                   <TableRow>
                     <TableHead>订单号</TableHead>
                     <TableHead>用户</TableHead>
+                    <TableHead>应用</TableHead>
                     <TableHead>类型</TableHead>
                     <TableHead>商品</TableHead>
                     <TableHead>金额</TableHead>
@@ -219,29 +235,30 @@ export default function OrdersPage() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-32 text-center">
+                      <TableCell colSpan={9} className="h-32 text-center">
                         <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
                   ) : orders.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                      <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                         暂无数据
                       </TableCell>
                     </TableRow>
                   ) : (
                     orders.map((order: any) => (
                       <TableRow key={order.id}>
-                        <TableCell className="font-mono text-sm">{order.id}</TableCell>
+                        <TableCell className="font-mono text-sm">{order.order_no || order.id}</TableCell>
                         <TableCell>{order.user_email || '-'}</TableCell>
+                        <TableCell><AppBadge appId={order.app_id} /></TableCell>
                         <TableCell>{getTypeBadge(order.type)}</TableCell>
                         <TableCell>{order.product_name || order.description || '-'}</TableCell>
-                        {/* 资源订单为创建资源（从余额扣款），不展示金额；仅充值订单展示入账金额 */}
+                        {/* 资源订单为创建资源（从余额扣款），不展示金额；收款订单展示入账金额 */}
                         <TableCell className="font-medium">
-                          {order.type === 'recharge' ? `¥${Number(order.amount || 0).toFixed(2)}` : '-'}
+                          {isPaymentOrder(order.type) ? `¥${Number(order.amount || 0).toFixed(2)}` : '-'}
                         </TableCell>
                         <TableCell>
-                          {order.type === 'recharge' ? getStatusBadge(order.status) : getStatusBadge('created')}
+                          {isPaymentOrder(order.type) ? getStatusBadge(order.status) : getStatusBadge('created')}
                         </TableCell>
                         <TableCell className="text-sm">{formatTime(order.created_at)}</TableCell>
                         <TableCell className="text-right">
@@ -352,15 +369,16 @@ export default function OrdersPage() {
           {detailOrder && (
             <div className="space-y-3 text-sm">
               {[
-                ['订单号', <span key="id" className="font-mono break-all">{detailOrder.id}</span>],
+                ['订单号', <span key="id" className="font-mono break-all">{detailOrder.order_no || detailOrder.id}</span>],
                 ['用户', detailOrder.user_email || '-'],
+                ['应用', appName(detailOrder.app_id)],
                 ['类型', getTypeLabel(detailOrder.type)],
                 ['商品', detailOrder.product_name || '-'],
                 ['描述', detailOrder.description || '-'],
-                ['金额', detailOrder.type === 'recharge'
+                ['金额', isPaymentOrder(detailOrder.type)
                   ? <span key="amt" className="font-medium text-emerald-600">+¥{Number(detailOrder.amount || 0).toFixed(2)}</span>
                   : '-（创建资源，从余额扣款）'],
-                ['状态', getStatusBadge(detailOrder.type === 'recharge' ? detailOrder.status : 'created')],
+                ['状态', getStatusBadge(isPaymentOrder(detailOrder.type) ? detailOrder.status : 'created')],
                 ['创建时间', formatTime(detailOrder.created_at)],
               ].map(([label, value], i) => (
                 <div key={i} className="flex items-start gap-3 py-1.5 border-b border-dashed last:border-0">

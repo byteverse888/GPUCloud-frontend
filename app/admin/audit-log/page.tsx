@@ -11,6 +11,8 @@ import { Loader2, Search, ClipboardList, RefreshCw } from 'lucide-react'
 import { useAdminAuditLog } from '@/hooks/use-api'
 import { Pagination } from '@/components/ui/pagination'
 import { formatTime } from '@/lib/utils'
+import { useUIStore } from '@/stores/ui-store'
+import { AppFilter, AppBadge } from '@/components/admin/app-filter'
 
 const actionLabels: Record<string, string> = {
   create: '创建', delete: '删除', update: '更新', start: '启动', stop: '停止', restart: '重启', login: '登录', login_failed: '登录失败', logout: '登出', register: '注册', recharge: '充值',
@@ -21,6 +23,7 @@ const resourceTypeLabels: Record<string, string> = {
 }
 
 export default function AdminAuditLogPage() {
+  const { adminAppId } = useUIStore()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [userEmail, setUserEmail] = useState('')
@@ -32,6 +35,7 @@ export default function AdminAuditLogPage() {
     userEmail || undefined,
     keyword || undefined,
     resourceType === 'all' ? undefined : resourceType,
+    adminAppId,
   )
 
   return (
@@ -39,7 +43,7 @@ export default function AdminAuditLogPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <ClipboardList className="h-6 w-6 text-primary" />
-          操作日志
+          实例操作日志
         </h1>
         <Button variant="outline" onClick={refresh} disabled={loading} className="gap-2">
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -66,6 +70,7 @@ export default function AdminAuditLogPage() {
             onChange={(e) => { setKeyword(e.target.value); setPage(1) }}
           />
         </div>
+        <AppFilter onChange={() => setPage(1)} />
         <Select value={resourceType} onValueChange={(v) => { setResourceType(v); setPage(1) }}>
           <SelectTrigger className="w-36">
             <SelectValue placeholder="资源类型" />
@@ -87,6 +92,7 @@ export default function AdminAuditLogPage() {
               <TableRow>
                 <TableHead>时间</TableHead>
                 <TableHead>用户</TableHead>
+                <TableHead>应用</TableHead>
                 <TableHead>操作</TableHead>
                 <TableHead>资源类型</TableHead>
                 <TableHead>资源名称</TableHead>
@@ -97,13 +103,13 @@ export default function AdminAuditLogPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center">
+                  <TableCell colSpan={8} className="h-32 text-center">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                   </TableCell>
                 </TableRow>
               ) : logs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">暂无日志</TableCell>
+                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">暂无日志</TableCell>
                 </TableRow>
               ) : (
                 logs.map((log: any) => (
@@ -112,6 +118,7 @@ export default function AdminAuditLogPage() {
                       {formatTime(log.created_at)}
                     </TableCell>
                     <TableCell className="text-sm">{log.user_email || '-'}</TableCell>
+                    <TableCell><AppBadge appId={log.app_id} /></TableCell>
                     <TableCell>
                       <Badge variant="outline">{actionLabels[log.action] || log.action}</Badge>
                     </TableCell>

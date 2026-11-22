@@ -223,12 +223,30 @@
     "images": "镜像管理",
     "reports": "数据报表",
     "settings": "系统设置",
-    "auditLog": "操作日志",
+    "auditLog": "实例操作日志",
+    "operationLogs": "管理操作日志",
+    "courses": "课程管理",
+    "memberPlans": "会员套餐",
+    "activationCodes": "激活码",
+    "feedback": "反馈管理",
+    "announcements": "公告管理",
+    "wechatOa": "订阅号配置",
     "market": "市场管理",
     "totalUsers": "总用户数",
     "totalNodes": "节点总数",
     "totalInstances": "实例总数",
-    "totalRevenue": "总收入"
+    "totalRevenue": "总收入",
+    "appFilter": "应用筛选",
+    "allApps": "全部应用",
+    "appColumn": "应用",
+    "memberLevel": "会员等级",
+    "accountType": "账号类型"
+  },
+  "adminApps": {
+    "gpucloud": "算力云",
+    "gpustudio": "算力工坊",
+    "gpubox": "算力宝",
+    "modelstudio": "模型工坊"
   },
   "header": {
     "computeMarket": "算力市场",

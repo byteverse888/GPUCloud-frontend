@@ -14,17 +14,21 @@ import { Bell, Plus, Trash2, Loader2, RefreshCw, Search, Send } from 'lucide-rea
 import { useAdminNotifications, sendAdminNotification, deleteAdminNotification } from '@/hooks/use-api'
 import toast from 'react-hot-toast'
 import { formatTime } from '@/lib/utils'
+import { useUIStore } from '@/stores/ui-store'
+import { AppFilter, AppBadge } from '@/components/admin/app-filter'
+import { ADMIN_APPS } from '@/lib/admin-apps'
 
 export default function AdminNotificationsPage() {
+  const { adminAppId } = useUIStore()
   const [page, setPage] = useState(1)
   const [userEmail, setUserEmail] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const { notifications, loading, total, refresh } = useAdminNotifications(
-    page, 20, userEmail || undefined, typeFilter === 'all' ? undefined : typeFilter
+    page, 20, userEmail || undefined, typeFilter === 'all' ? undefined : typeFilter, adminAppId
   )
 
   const [showSendDialog, setShowSendDialog] = useState(false)
-  const [sendForm, setSendForm] = useState({ title: '', content: '', type: 'system', user_ids: '' })
+  const [sendForm, setSendForm] = useState({ title: '', content: '', type: 'system', user_ids: '', app_id: 'all' })
   const [sending, setSending] = useState(false)
 
   const typeLabels: Record<string, string> = {
@@ -39,10 +43,11 @@ export default function AdminNotificationsPage() {
       if (sendForm.user_ids.trim()) {
         payload.user_ids = sendForm.user_ids.split(',').map(s => s.trim()).filter(Boolean)
       }
+      if (sendForm.app_id !== 'all') payload.app_id = sendForm.app_id
       await sendAdminNotification(payload)
       toast.success('通知发送成功')
       setShowSendDialog(false)
-      setSendForm({ title: '', content: '', type: 'system', user_ids: '' })
+      setSendForm({ title: '', content: '', type: 'system', user_ids: '', app_id: 'all' })
       refresh()
     } catch { toast.error('发送失败') } finally { setSending(false) }
   }
@@ -67,7 +72,7 @@ export default function AdminNotificationsPage() {
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             刷新
           </Button>
-          <Button onClick={() => setShowSendDialog(true)}>
+          <Button onClick={() => { setSendForm(p => ({ ...p, app_id: adminAppId })); setShowSendDialog(true) }}>
             <Send className="h-4 w-4 mr-2" />
             发送通知
           </Button>
@@ -80,6 +85,7 @@ export default function AdminNotificationsPage() {
           <Input placeholder="搜索用户邮箱..." className="pl-9" value={userEmail}
             onChange={(e) => { setUserEmail(e.target.value); setPage(1) }} />
         </div>
+        <AppFilter onChange={() => setPage(1)} />
         <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1) }}>
           <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -99,6 +105,7 @@ export default function AdminNotificationsPage() {
               <TableRow>
                 <TableHead>时间</TableHead>
                 <TableHead>用户</TableHead>
+                <TableHead>应用</TableHead>
                 <TableHead>类型</TableHead>
                 <TableHead>标题</TableHead>
                 <TableHead>状态</TableHead>
@@ -108,13 +115,13 @@ export default function AdminNotificationsPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center">
+                  <TableCell colSpan={7} className="h-32 text-center">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                   </TableCell>
                 </TableRow>
               ) : notifications.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">暂无通知</TableCell>
+                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">暂无通知</TableCell>
                 </TableRow>
               ) : (
                 notifications.map((n: any) => (
@@ -123,6 +130,7 @@ export default function AdminNotificationsPage() {
                       {n.created_at ? formatTime(n.created_at) : '--'}
                     </TableCell>
                     <TableCell className="text-sm">{n.user_email || '--'}</TableCell>
+                    <TableCell><AppBadge appId={n.app_id} /></TableCell>
                     <TableCell>
                       <Badge variant="outline">{typeLabels[n.type] || n.type}</Badge>
                     </TableCell>
@@ -180,9 +188,21 @@ export default function AdminNotificationsPage() {
               </Select>
             </div>
             <div className="space-y-2">
+              <Label>目标应用</Label>
+              <Select value={sendForm.app_id} onValueChange={(v) => setSendForm(p => ({ ...p, app_id: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部应用</SelectItem>
+                  {ADMIN_APPS.map((app) => (
+                    <SelectItem key={app.value} value={app.value}>{app.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>目标用户</Label>
               <Input value={sendForm.user_ids} onChange={(e) => setSendForm(p => ({ ...p, user_ids: e.target.value }))} placeholder="留空发送给所有用户，或输入用户ID（逗号分隔）" />
-              <p className="text-xs text-muted-foreground">不填写则发送给平台所有用户</p>
+              <p className="text-xs text-muted-foreground">不填写则发送给所选应用的全部用户</p>
             </div>
           </div>
           <DialogFooter>

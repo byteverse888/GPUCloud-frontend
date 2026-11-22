@@ -237,6 +237,27 @@ export function toFullUrl(path?: string): string {
 }
 
 /**
+ * S3 预签名直传：presign → 浏览器 PUT 文件 → 返回公开访问 URL。
+ * 后端 /storage/presign/upload 校验前缀白名单；upload/avatar 等前缀启动时已开匿名可读。
+ */
+export async function uploadFileToS3(
+  file: File,
+  prefix: string = 'upload'
+): Promise<{ file_url: string; file_key: string }> {
+  const { data } = await api.post<{ upload_url: string; file_url: string; file_key: string }>(
+    '/storage/presign/upload',
+    { filename: file.name, content_type: file.type || 'application/octet-stream', prefix }
+  )
+  const res = await fetch(data.upload_url, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  })
+  if (!res.ok) throw new Error(`上传失败 (${res.status})`)
+  return { file_url: data.file_url, file_key: data.file_key }
+}
+
+/**
  * 计算 WebSocket 基址。new WebSocket() 不接受相对路径，必须是 ws(s)://host/path 绝对地址。
  * 规则：显式配了绝对 NEXT_PUBLIC_WS_URL 就用它；否则运行时按当前页面 origin 拼接，
  * 前缀从 NEXT_PUBLIC_API_URL 推导（去掉 /api/v1）。用 IP 或域名访问都自适应、同源无跨域。

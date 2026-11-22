@@ -487,7 +487,7 @@ export interface AdminOrder {
   id: string; user_id: string; user_email: string; type: string; status: string; amount: number; created_at: string
 }
 
-export function useAdminOrders(page: number = 1, size: number = 20, userId?: string, filters?: { email?: string; status?: string; type?: string }) {
+export function useAdminOrders(page: number = 1, size: number = 20, userId?: string, filters?: { email?: string; status?: string; type?: string; appId?: string }) {
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
@@ -499,12 +499,13 @@ export function useAdminOrders(page: number = 1, size: number = 20, userId?: str
       if (filters?.email) params.user_email = filters.email
       if (filters?.status) params.status = filters.status
       if (filters?.type) params.type = filters.type
+      if (filters?.appId && filters.appId !== 'all') params.app_id = filters.appId
       const { data } = await api.get<{ list: AdminOrder[]; total: number }>('/admin/orders', params)
       setOrders(data.list || []); setTotal(data.total || 0)
     } catch {
       setOrders([]); setTotal(0)
     } finally { setLoading(false) }
-  }, [page, size, userId, filters?.email, filters?.status, filters?.type])
+  }, [page, size, userId, filters?.email, filters?.status, filters?.type, filters?.appId])
   useEffect(() => { fetchOrders() }, [fetchOrders])
   return { orders, loading, total, refresh: fetchOrders }
 }
@@ -1116,7 +1117,7 @@ export function useResourcePlans() {
   return { plans, loading, refresh: fetchPlans }
 }
 
-export function useAdminTransactions(page: number = 1, size: number = 20, userId?: string, type?: string, userEmail?: string) {
+export function useAdminTransactions(page: number = 1, size: number = 20, userId?: string, type?: string, userEmail?: string, appId?: string) {
   const [transactions, setTransactions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
@@ -1127,10 +1128,11 @@ export function useAdminTransactions(page: number = 1, size: number = 20, userId
       if (userId) params.user_id = userId
       if (type) params.type = type
       if (userEmail) params.user_email = userEmail
+      if (appId && appId !== 'all') params.app_id = appId
       const { data } = await api.get<{ list: any[]; total: number }>('/admin/orders/transactions', params)
       setTransactions(data.list || []); setTotal(data.total || 0)
     } catch { setTransactions([]); setTotal(0) } finally { setLoading(false) }
-  }, [page, size, userId, type, userEmail])
+  }, [page, size, userId, type, userEmail, appId])
   useEffect(() => { fetchTransactions() }, [fetchTransactions])
   return { transactions, loading, total, refresh: fetchTransactions }
 }
@@ -1152,7 +1154,7 @@ export function useAdminStatements(year?: number, userId?: string) {
   return { statements, loading, refresh: fetchStatements }
 }
 
-export function useAdminOrderStats(userId?: string) {
+export function useAdminOrderStats(userId?: string, appId?: string) {
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const fetchStats = useCallback(async () => {
@@ -1160,10 +1162,11 @@ export function useAdminOrderStats(userId?: string) {
       setLoading(true)
       const params: Record<string, string | number> = {}
       if (userId) params.user_id = userId
+      if (appId && appId !== 'all') params.app_id = appId
       const { data } = await api.get<any>('/admin/orders/stats', params)
       setStats(data)
     } catch { setStats({ total_revenue: 0, today_revenue: 0, month_revenue: 0, total_orders: 0, today_orders: 0, recharge_orders: 0, today_consumption: 0 }) } finally { setLoading(false) }
-  }, [userId])
+  }, [userId, appId])
   useEffect(() => { fetchStats() }, [fetchStats])
   return { stats, loading, refresh: fetchStats }
 }
@@ -1286,7 +1289,7 @@ export function useAuditLog(page: number = 1, size: number = 20, keyword?: strin
   return { logs, loading, total, refresh: fetchLogs }
 }
 
-export function useAdminAuditLog(page: number = 1, size: number = 20, userEmail?: string, keyword?: string, resourceType?: string) {
+export function useAdminAuditLog(page: number = 1, size: number = 20, userEmail?: string, keyword?: string, resourceType?: string, appId?: string) {
   const [logs, setLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
@@ -1297,10 +1300,11 @@ export function useAdminAuditLog(page: number = 1, size: number = 20, userEmail?
       if (userEmail) params.user_email = userEmail
       if (keyword) params.keyword = keyword
       if (resourceType) params.resource_type = resourceType
+      if (appId && appId !== 'all') params.app_id = appId
       const { data } = await api.get<{ list: any[]; total: number }>('/audit-log/admin', params)
       setLogs(data.list || []); setTotal(data.total || 0)
     } catch { setLogs([]); setTotal(0) } finally { setLoading(false) }
-  }, [page, size, userEmail, keyword, resourceType])
+  }, [page, size, userEmail, keyword, resourceType, appId])
   useEffect(() => { fetchLogs() }, [fetchLogs])
   return { logs, loading, total, refresh: fetchLogs }
 }
@@ -1471,7 +1475,7 @@ export async function deletePublicDataset(id: string) {
 }
 
 // ====== 管理端通知管理 hooks ======
-export function useAdminNotifications(page: number = 1, size: number = 20, userEmail?: string, ntype?: string) {
+export function useAdminNotifications(page: number = 1, size: number = 20, userEmail?: string, ntype?: string, appId?: string) {
   const [notifications, setNotifications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
@@ -1481,15 +1485,16 @@ export function useAdminNotifications(page: number = 1, size: number = 20, userE
       const params: Record<string, string | number> = { page, size }
       if (userEmail) params.user_email = userEmail
       if (ntype) params.ntype = ntype
+      if (appId && appId !== 'all') params.app_id = appId
       const { data } = await api.get<{ list: any[]; total: number }>('/admin/notifications', params)
       setNotifications(data.list || []); setTotal(data.total || 0)
     } catch { setNotifications([]); setTotal(0) } finally { setLoading(false) }
-  }, [page, size, userEmail, ntype])
+  }, [page, size, userEmail, ntype, appId])
   useEffect(() => { fetchNotifications() }, [fetchNotifications])
   return { notifications, loading, total, refresh: fetchNotifications }
 }
 
-export async function sendAdminNotification(data: { title: string; content: string; type: string; user_ids?: string[] }) {
+export async function sendAdminNotification(data: { title: string; content: string; type: string; user_ids?: string[]; app_id?: string }) {
   return api.post('/admin/notifications', data)
 }
 
@@ -1498,18 +1503,24 @@ export async function deleteAdminNotification(id: string) {
 }
 
 // ====== 管理端推广管理 hooks ======
-export function useAdminReferralStats() {
+export function useAdminReferralStats(appId?: string) {
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const fetchStats = useCallback(async () => {
-    try { setLoading(true); const { data } = await api.get<any>('/admin/referral/stats'); setStats(data) }
+    try {
+      setLoading(true)
+      const params: Record<string, string> = {}
+      if (appId && appId !== 'all') params.app_id = appId
+      const { data } = await api.get<any>('/admin/referral/stats', params)
+      setStats(data)
+    }
     catch { setStats(null) } finally { setLoading(false) }
-  }, [])
+  }, [appId])
   useEffect(() => { fetchStats() }, [fetchStats])
   return { stats, loading, refresh: fetchStats }
 }
 
-export function useAdminReferralRecords(page: number = 1, size: number = 20, referrerEmail?: string) {
+export function useAdminReferralRecords(page: number = 1, size: number = 20, referrerEmail?: string, appId?: string) {
   const [records, setRecords] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
@@ -1518,10 +1529,11 @@ export function useAdminReferralRecords(page: number = 1, size: number = 20, ref
       setLoading(true)
       const params: Record<string, string | number> = { page, size }
       if (referrerEmail) params.referrer_email = referrerEmail
+      if (appId && appId !== 'all') params.app_id = appId
       const { data } = await api.get<{ list: any[]; total: number }>('/admin/referral/records', params)
       setRecords(data.list || []); setTotal(data.total || 0)
     } catch { setRecords([]); setTotal(0) } finally { setLoading(false) }
-  }, [page, size, referrerEmail])
+  }, [page, size, referrerEmail, appId])
   useEffect(() => { fetchRecords() }, [fetchRecords])
   return { records, loading, total, refresh: fetchRecords }
 }

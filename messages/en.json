@@ -223,12 +223,30 @@
     "images": "Images",
     "reports": "Reports",
     "settings": "Settings",
-    "auditLog": "Audit Log",
+    "auditLog": "Instance Audit Log",
+    "operationLogs": "Admin Operation Logs",
+    "courses": "Courses",
+    "memberPlans": "Member Plans",
+    "activationCodes": "Activation Codes",
+    "feedback": "Feedback",
+    "announcements": "Announcements",
+    "wechatOa": "WeChat OA Config",
     "market": "Market",
     "totalUsers": "Total Users",
     "totalNodes": "Total Nodes",
     "totalInstances": "Total Instances",
-    "totalRevenue": "Total Revenue"
+    "totalRevenue": "Total Revenue",
+    "appFilter": "App Filter",
+    "allApps": "All Apps",
+    "appColumn": "App",
+    "memberLevel": "Member Level",
+    "accountType": "Account Type"
+  },
+  "adminApps": {
+    "gpucloud": "GPUCloud",
+    "gpustudio": "GPUStudio",
+    "gpubox": "GPUBox",
+    "modelstudio": "ModelStudio"
   },
   "header": {
     "computeMarket": "Compute Market",

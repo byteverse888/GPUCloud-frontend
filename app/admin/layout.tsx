@@ -43,6 +43,15 @@ import {
   FileCode,
   ListTodo,
   Bot,
+  GraduationCap,
+  Crown,
+  Ticket,
+  MessageCircle,
+  ScrollText,
+  QrCode,
+  Megaphone,
+  LayoutGrid,
+  Timer,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -68,6 +77,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { SidebarResizeHandle } from '@/components/layout/sidebar-resize-handle'
 import { useSidebarResponsive } from '@/hooks/use-sidebar-responsive'
 import api, { toFullUrl } from '@/lib/api'
+import { ADMIN_APPS, appName } from '@/lib/admin-apps'
 import toast from 'react-hot-toast'
 
 type NavItem = {
@@ -93,13 +103,13 @@ const adminNavItems: NavItem[] = [
       { href: '/admin/workloads', label: '工作负载', icon: Box },
       { href: '/admin/configmaps', label: '配置管理', icon: FileCode },
       { href: '/admin/jobs', label: '任务管理', icon: ListTodo },
-      { href: '/admin/pods', label: '容器管理', icon: Container },
+      { href: '/admin/pods', label: '容器实例', icon: Container },
       { href: '/admin/agents', label: '智能体实例', icon: Bot },
     ],
   },
   {
     href: '/admin/products',
-    label: '产品管理',
+    label: '官网门户',
     icon: Package,
     children: [
       { href: '/admin/market', label: '算力市场', icon: Store },
@@ -114,6 +124,7 @@ const adminNavItems: NavItem[] = [
     label: '运营管理',
     icon: Users,
     children: [
+      { href: '/admin/apps', label: '应用管理', icon: AppWindow },
       { href: '/admin/users', label: '用户管理', icon: Users },
       { href: '/admin/orders', label: '订单管理', icon: ShoppingCart },
       { href: '/admin/billing', label: '套餐管理', icon: CircleDollarSign },
@@ -121,7 +132,15 @@ const adminNavItems: NavItem[] = [
       { href: '/admin/notifications', label: '通知管理', icon: Bell },
       { href: '/admin/referral', label: '推广管理', icon: Share2 },
       { href: '/admin/reports', label: '数据报表', icon: BarChart3 },
-      { href: '/admin/audit-log', label: '操作日志', icon: ClipboardList },
+      { href: '/admin/courses', label: '课程管理', icon: GraduationCap },
+      { href: '/admin/member-plans', label: '会员套餐', icon: Crown },
+      { href: '/admin/activation-codes', label: '激活码', icon: Ticket },
+      { href: '/admin/feedback', label: '反馈管理', icon: MessageCircle },
+      { href: '/admin/announcements', label: '公告管理', icon: Megaphone },
+      { href: '/admin/wechat-oa', label: '订阅号配置', icon: QrCode },
+      { href: '/admin/scheduled-tasks', label: '定时任务', icon: Timer },
+      { href: '/admin/audit-log', label: '实例操作日志', icon: ClipboardList },
+      { href: '/admin/operation-logs', label: '管理操作日志', icon: ScrollText },
     ],
   },
   { href: '/admin/settings', label: '系统设置', icon: Settings },
@@ -132,7 +151,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter()
   const { user, isLoading, isAuthenticated, logout, checkAuth } = useAuthStore()
   const { theme, setTheme } = useTheme()
-  const { sidebarWidth, isResizing } = useUIStore()
+  const { sidebarWidth, isResizing, adminAppId, setAdminAppId } = useUIStore()
   useSidebarResponsive()
   const [countdown, setCountdown] = useState(3)
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ '/admin/resources': true, '/admin/products': true, '/admin/operations': true })
@@ -386,7 +405,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <main className="flex-1 min-w-0 overflow-auto">
         {/* 顶部栏 */}
         <header className="h-16 border-b bg-card flex items-center justify-between px-6">
-          <div></div>
+          {/* 应用切换器：全局筛选（持久化），各列表页的应用下拉与之联动 */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <LayoutGrid className="h-4 w-4" />
+                {adminAppId === 'all' ? '全部应用' : appName(adminAppId)}
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => setAdminAppId('all')}>全部应用</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {ADMIN_APPS.map((app) => (
+                <DropdownMenuItem key={app.value} onClick={() => setAdminAppId(app.value)}>
+                  {app.label}
+                  <span className="ml-2 text-xs text-muted-foreground">{app.value}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="flex items-center gap-3">
             {/* 主题切换 */}
             <Button

@@ -27,6 +27,8 @@ import {
 import api from '@/lib/api'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/stores/auth-store'
+import { useUIStore } from '@/stores/ui-store'
+import { AppFilter, AppBadge } from '@/components/admin/app-filter'
 import { formatTime } from '@/lib/utils'
 
 interface Ticket {
@@ -47,6 +49,7 @@ interface Ticket {
   user_email?: string
   user_nickname?: string
   handler_nickname?: string
+  app_id?: string
 }
 
 interface TicketStats {
@@ -59,6 +62,7 @@ interface TicketStats {
 
 export default function AdminTicketsPage() {
   const { token } = useAuthStore()
+  const { adminAppId } = useUIStore()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [stats, setStats] = useState<TicketStats>({ open: 0, processing: 0, resolved: 0, closed: 0, total: 0 })
   const [loading, setLoading] = useState(true)
@@ -95,6 +99,7 @@ export default function AdminTicketsPage() {
       if (statusFilter) params.status = statusFilter
       if (categoryFilter) params.category = categoryFilter
       if (priorityFilter) params.priority = priorityFilter
+      if (adminAppId && adminAppId !== 'all') params.app_id = adminAppId
 
       const { data } = await api.get<{ list: Ticket[]; total: number }>('/admin/tickets', params)
       setTickets(data.list || [])
@@ -105,21 +110,23 @@ export default function AdminTicketsPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, searchQuery, statusFilter, categoryFilter, priorityFilter])
+  }, [page, searchQuery, statusFilter, categoryFilter, priorityFilter, adminAppId])
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
-      const { data } = await api.get<TicketStats>('/admin/tickets/stats')
+      const params: Record<string, string> = {}
+      if (adminAppId && adminAppId !== 'all') params.app_id = adminAppId
+      const { data } = await api.get<TicketStats>('/admin/tickets/stats', params)
       setStats(data)
     } catch (err) {
       console.error('获取统计失败:', err)
     }
-  }
+  }, [adminAppId])
 
   useEffect(() => {
     fetchTickets()
     fetchStats()
-  }, [fetchTickets])
+  }, [fetchTickets, fetchStats])
 
   // 回复工单
   const handleReply = async () => {
@@ -289,6 +296,7 @@ export default function AdminTicketsPage() {
                 onKeyDown={(e) => e.key === 'Enter' && fetchTickets()}
               />
             </div>
+            <AppFilter onChange={() => setPage(1)} />
             <Select value={statusFilter || '__all__'} onValueChange={(v) => setStatusFilter(v === '__all__' ? '' : v)}>
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="状态" />
@@ -341,6 +349,7 @@ export default function AdminTicketsPage() {
               <TableRow>
                 <TableHead className="w-[280px]">标题</TableHead>
                 <TableHead className="w-[120px]">提交用户</TableHead>
+                <TableHead className="w-[100px]">应用</TableHead>
                 <TableHead className="w-[100px]">分类</TableHead>
                 <TableHead className="w-[80px]">优先级</TableHead>
                 <TableHead className="w-[100px]">状态</TableHead>
@@ -352,13 +361,13 @@ export default function AdminTicketsPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={9} className="text-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                   </TableCell>
                 </TableRow>
               ) : tickets.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     暂无工单
                   </TableCell>
                 </TableRow>
@@ -374,6 +383,7 @@ export default function AdminTicketsPage() {
                     <TableCell>
                       <div className="text-sm">{ticket.user_nickname || ticket.user_email}</div>
                     </TableCell>
+                    <TableCell><AppBadge appId={ticket.app_id} /></TableCell>
                     <TableCell>{getCategoryLabel(ticket.category)}</TableCell>
                     <TableCell>{getPriorityBadge(ticket.priority)}</TableCell>
                     <TableCell>{getStatusBadge(ticket.status)}</TableCell>

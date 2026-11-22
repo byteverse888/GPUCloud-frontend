@@ -11,9 +11,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { Search, MoreHorizontal, Edit, Ban, DollarSign, Trash2, Loader2, RefreshCw, Plus, UserPlus, CheckCircle, Settings2 } from 'lucide-react'
+import { Search, MoreHorizontal, Edit, Ban, DollarSign, Trash2, Loader2, RefreshCw, Plus, UserPlus, CheckCircle, Settings2, KeyRound, Crown } from 'lucide-react'
 import api from '@/lib/api'
 import toast from 'react-hot-toast'
+import { useUIStore } from '@/stores/ui-store'
+import { AppFilter, AppBadge } from '@/components/admin/app-filter'
+import { ADMIN_APPS } from '@/lib/admin-apps'
 
 interface AdminUser {
   id: string
@@ -25,9 +28,21 @@ interface AdminUser {
   instances: number
   instance_quota: number
   created_at: string
+  app_id?: string
+  phone?: string
+  web3_address?: string
+  account_type?: string
+  member_level?: string
+  member_expire_at?: string
+  points?: number
+}
+
+const accountTypeLabels: Record<string, string> = {
+  email: '邮箱', phone: '手机', web3: 'Web3', wechat_sub: '订阅号',
 }
 
 export default function UsersPage() {
+  const { adminAppId } = useUIStore()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
@@ -38,7 +53,7 @@ export default function UsersPage() {
   // 添加用户弹窗
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [createLoading, setCreateLoading] = useState(false)
-  const [newUser, setNewUser] = useState({ email: '', nickname: '', password: '', role: 'user' })
+  const [newUser, setNewUser] = useState({ email: '', nickname: '', password: '', role: 'user', app_id: 'gpucloud' })
   
   // 调整余额弹窗
   const [balanceDialogOpen, setBalanceDialogOpen] = useState(false)
@@ -58,12 +73,19 @@ export default function UsersPage() {
   const [quotaUser, setQuotaUser] = useState<AdminUser | null>(null)
   const [quotaValue, setQuotaValue] = useState('')
 
+  // 重置密码弹窗
+  const [resetPwdDialogOpen, setResetPwdDialogOpen] = useState(false)
+  const [resetPwdLoading, setResetPwdLoading] = useState(false)
+  const [resetPwdUser, setResetPwdUser] = useState<AdminUser | null>(null)
+  const [resetPwdValue, setResetPwdValue] = useState('')
+
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true)
       const params: Record<string, any> = { page, size: 20 }
       if (searchQuery) params.search = searchQuery
       if (statusFilter !== 'all') params.status = statusFilter
+      if (adminAppId && adminAppId !== 'all') params.app_id = adminAppId
       
       const { data } = await api.get<{ list: AdminUser[]; total: number }>('/admin/users', params)
       setUsers(data.list || [])
@@ -74,7 +96,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, searchQuery, statusFilter])
+  }, [page, searchQuery, statusFilter, adminAppId])
 
   useEffect(() => {
     fetchUsers()
@@ -91,7 +113,7 @@ export default function UsersPage() {
       await api.post('/admin/users', newUser)
       toast.success('用户创建成功')
       setCreateDialogOpen(false)
-      setNewUser({ email: '', nickname: '', password: '', role: 'user' })
+      setNewUser({ email: '', nickname: '', password: '', role: 'user', app_id: 'gpucloud' })
       fetchUsers()
     } catch (err: any) {
       toast.error(err.response?.data?.detail || '创建失败')
@@ -171,6 +193,26 @@ export default function UsersPage() {
     }
   }
 
+  // 重置密码
+  const handleResetPassword = async () => {
+    if (!resetPwdUser || resetPwdValue.length < 6) {
+      toast.error('新密码长度至少6位')
+      return
+    }
+    try {
+      setResetPwdLoading(true)
+      await api.post(`/admin/users/${resetPwdUser.id}/reset-password`, { new_password: resetPwdValue })
+      toast.success('密码已重置')
+      setResetPwdDialogOpen(false)
+      setResetPwdValue('')
+      setResetPwdUser(null)
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || '重置失败')
+    } finally {
+      setResetPwdLoading(false)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'success' | 'destructive'; dotClass: string }> = {
       active: { label: '正常', variant: 'success', dotClass: 'bg-emerald-500' },
@@ -195,7 +237,7 @@ export default function UsersPage() {
             {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
             刷新
           </Button>
-          <Button onClick={() => setCreateDialogOpen(true)}>
+          <Button onClick={() => { setNewUser(prev => ({ ...prev, app_id: adminAppId !== 'all' ? adminAppId : 'gpucloud' })); setCreateDialogOpen(true) }}>
             <UserPlus className="h-4 w-4 mr-2" />
             添加用户
           </Button>
@@ -205,8 +247,9 @@ export default function UsersPage() {
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="搜索用户邮箱/昵称..." className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+          <Input placeholder="搜索邮箱/昵称/手机/Web3地址..." className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
         </div>
+        <AppFilter onChange={() => setPage(1)} />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -223,7 +266,9 @@ export default function UsersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>用户</TableHead>
+                <TableHead>应用</TableHead>
                 <TableHead>状态</TableHead>
+                <TableHead>会员</TableHead>
                 <TableHead>邮箱验证</TableHead>
                 <TableHead>余额</TableHead>
                 <TableHead>实例数/配额</TableHead>
@@ -234,13 +279,13 @@ export default function UsersPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center">
+                  <TableCell colSpan={9} className="h-32 text-center">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                   </TableCell>
                 </TableRow>
               ) : users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                     暂无数据
                   </TableCell>
                 </TableRow>
@@ -251,9 +296,30 @@ export default function UsersPage() {
                       <div>
                         <div className="font-medium">{user.nickname}</div>
                         <div className="text-xs text-muted-foreground">{user.email}</div>
+                        {user.account_type && user.account_type !== 'email' && (
+                          <div className="text-xs text-muted-foreground">
+                            {accountTypeLabels[user.account_type] || user.account_type}
+                            {user.phone ? `: ${user.phone}` : ''}
+                          </div>
+                        )}
+                        {user.web3_address && (
+                          <div className="text-xs text-muted-foreground font-mono" title={user.web3_address}>
+                            {user.web3_address.slice(0, 6)}...{user.web3_address.slice(-4)}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
+                    <TableCell><AppBadge appId={user.app_id} /></TableCell>
                     <TableCell>{getStatusBadge(user.status)}</TableCell>
+                    <TableCell>
+                      {user.member_level && user.member_level !== 'normal' ? (
+                        <Badge variant="default" className="gap-1 bg-amber-500 hover:bg-amber-600">
+                          <Crown className="h-3 w-3" />{user.member_level.toUpperCase()}
+                        </Badge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">普通</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {user.verified ? (
                         <Badge variant="outline" className="text-green-600 border-green-600">已激活</Badge>
@@ -275,6 +341,9 @@ export default function UsersPage() {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => { setQuotaUser(user); setQuotaValue(String(user.instance_quota ?? 20)); setQuotaDialogOpen(true); }}>
                             <Settings2 className="h-4 w-4 mr-2" />调整配额
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setResetPwdUser(user); setResetPwdValue(''); setResetPwdDialogOpen(true); }}>
+                            <KeyRound className="h-4 w-4 mr-2" />重置密码
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {user.status === 'active' ? (
@@ -325,6 +394,18 @@ export default function UsersPage() {
             <DialogDescription>创建新的平台用户账号</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>所属应用 *</Label>
+              <Select value={newUser.app_id} onValueChange={(v) => setNewUser(prev => ({ ...prev, app_id: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ADMIN_APPS.map((app) => (
+                    <SelectItem key={app.value} value={app.value}>{app.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">同一邮箱在不同应用是独立账号、独立余额</p>
+            </div>
             <div className="space-y-2">
               <Label>邮箱 *</Label>
               <Input 
@@ -434,6 +515,36 @@ export default function UsersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 重置密码弹窗 */}
+      <Dialog open={resetPwdDialogOpen} onOpenChange={setResetPwdDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>重置密码</DialogTitle>
+            <DialogDescription>
+              用户: {resetPwdUser?.nickname} ({resetPwdUser?.email})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>新密码</Label>
+              <Input
+                type="password"
+                value={resetPwdValue}
+                onChange={(e) => setResetPwdValue(e.target.value)}
+                placeholder="至少6位"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPwdDialogOpen(false)}>取消</Button>
+            <Button onClick={handleResetPassword} disabled={resetPwdLoading} className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white">
+              {resetPwdLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              确认重置
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 调整配额弹窗 */}
       <Dialog open={quotaDialogOpen} onOpenChange={setQuotaDialogOpen}>

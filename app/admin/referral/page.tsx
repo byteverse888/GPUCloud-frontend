@@ -9,12 +9,15 @@ import { Share2, Users, Coins, Loader2, RefreshCw, Search, CheckCircle, Clock } 
 import { Badge } from '@/components/ui/badge'
 import { useAdminReferralStats, useAdminReferralRecords } from '@/hooks/use-api'
 import { formatTime } from '@/lib/utils'
+import { useUIStore } from '@/stores/ui-store'
+import { AppFilter, AppBadge } from '@/components/admin/app-filter'
 
 export default function AdminReferralPage() {
-  const { stats, loading: statsLoading, refresh: refreshStats } = useAdminReferralStats()
+  const { adminAppId } = useUIStore()
+  const { stats, loading: statsLoading, refresh: refreshStats } = useAdminReferralStats(adminAppId)
   const [page, setPage] = useState(1)
   const [emailFilter, setEmailFilter] = useState('')
-  const { records, loading, total, refresh } = useAdminReferralRecords(page, 20, emailFilter || undefined)
+  const { records, loading, total, refresh } = useAdminReferralRecords(page, 20, emailFilter || undefined, adminAppId)
 
   const totalPages = Math.ceil(total / 20)
 
@@ -95,6 +98,7 @@ export default function AdminReferralPage() {
             onChange={(e) => { setEmailFilter(e.target.value); setPage(1) }}
           />
         </div>
+        <AppFilter onChange={() => setPage(1)} />
       </div>
 
       {/* 记录列表 */}
@@ -105,6 +109,7 @@ export default function AdminReferralPage() {
               <TableRow>
                 <TableHead>邀请人</TableHead>
                 <TableHead>被邀请人</TableHead>
+                <TableHead>应用</TableHead>
                 <TableHead>注册时间</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead>奖励积分</TableHead>
@@ -113,13 +118,13 @@ export default function AdminReferralPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-32 text-center">
+                  <TableCell colSpan={6} className="h-32 text-center">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                   </TableCell>
                 </TableRow>
               ) : records.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                     暂无推广记录
                   </TableCell>
                 </TableRow>
@@ -128,6 +133,7 @@ export default function AdminReferralPage() {
                   <TableRow key={r.id || idx}>
                     <TableCell className="text-sm">{r.referrer_email || '--'}</TableCell>
                     <TableCell className="text-sm">{r.invited_user_email || '--'}</TableCell>
+                    <TableCell><AppBadge appId={r.app_id} /></TableCell>
                     <TableCell className="text-sm whitespace-nowrap">
                       {r.invited_at ? formatTime(r.invited_at) : '--'}
                     </TableCell>
